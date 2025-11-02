@@ -2,6 +2,7 @@
 
 Recreation of the arrow puzzle from exponential idle made with Python and Pygame
 Make all circles turn black by tapping the tiles
+Expect some bugs (screen sizing, solver not working, etc.)
 
 ## Features
 
