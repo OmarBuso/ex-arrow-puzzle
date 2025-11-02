@@ -1,4 +1,3 @@
-import pygame
 import math
 import random
 import time
@@ -7,6 +6,11 @@ try:
 except ImportError:
     import os
     os.system("pip install numpy")
+try:
+    import pygame
+except ImportError:
+    import os
+    os.system("pip install pygame")
 from itertools import product
 
 # Settings
