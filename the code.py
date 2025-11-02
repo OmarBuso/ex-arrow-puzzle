@@ -2,7 +2,11 @@ import pygame
 import math
 import random
 import time
-import numpy as np
+try:
+    import numpy as np
+except ImportError:
+    import os
+    os.system("pip install numpy")
 from itertools import product
 
 # Settings
