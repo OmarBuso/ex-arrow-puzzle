@@ -1,6 +1,7 @@
 import math
 import random
 import time
+from itertools import product
 try:
     import numpy as np
 except ImportError:
@@ -11,12 +12,23 @@ try:
 except ImportError:
     import os
     os.system("pip install pygame")
-from itertools import product
 
 # Settings
-widthX, heightY = 1080, 2100 # Might be different for every device
-hexSize = 100 # Hexagon size
+pygame.init()
+info = pygame.display.Info()
+widthX, heightY = info.current_w, info.current_h - 300 # Adjustable size!
+screen = pygame.display.set_mode((widthX, heightY), pygame.RESIZABLE)
+pygame.display.set_caption("Arrow Puzzle")
+clock = pygame.time.Clock()
+
+# Scaling
+refW, refH = 1080, 2100
+scaleX = widthX / refW
+scaleY = heightY / refH
+
+# Sizes
 gridRadius = 3 # Number of hexagons + 1 in every side
+hexSize = int(100 * scaleX) # Hexagon size
 totalStates = 2
 
 # Colors
@@ -47,13 +59,22 @@ for c in range(totalStates):
 		col = c * 255//totalStates
 		colorState.append((col, col, col))
 
-pygame.init()
-screen = pygame.display.set_mode((widthX, heightY))
-pygame.display.set_caption("Arrow Puzzle")
-clock = pygame.time.Clock()
-font = pygame.font.SysFont("consolas", 60) # Looks a bit like the font the game uses
 
 ## If you dont know what you're doing, its recommended to not move anything past this point
+
+# Fonts
+font = pygame.font.SysFont("consolas", int(60 * scaleY)) # Looks a bit like the font the game uses
+fontCell = pygame.font.SysFont("consolas", int(50 * scaleY), bold=True) # Font for the cells/circles
+fontHint = pygame.font.SysFont("consolas", int(60 * scaleY), bold=True) # Font for the board solution (hint)
+
+# Buttons
+buttonWidth = int(1000 * scaleX)
+buttonHeight = int(100 * scaleY)
+buttonGameY = int(heightY - 100 * scaleY)
+buttonSolverY = int(heightY - 250 * scaleY)
+
+buttonGame = pygame.Rect(widthX / 2 - buttonWidth / 2, buttonGameY, buttonWidth, buttonHeight)
+buttonSolver = pygame.Rect(widthX / 2 - buttonWidth / 2, buttonSolverY, buttonWidth, buttonHeight)
 
 # Directions for the Neighbor cells
 directions = [(1,0), (1,-1), (0,-1), (-1,0), (-1,1), (0,1)]
@@ -112,17 +133,17 @@ def random_board():
 keys = list(hexGrid.keys())
 
 def matrix(keys, hexGrid, directions):
-    # Finds x (clicks in the grid) to solve Ax = b (mod N), where A is the matrix and b is the entire grid
-    n = len(keys)
-    A = np.zeros((n,n), dtype=np.uint8)
-    for i, (q, r) in enumerate(keys):
-        A[i,i] = 1
-        for dq, dr in directions:
-            v = (q + dq, r + dr)
-            if v in hexGrid:
-                j = keys.index(v)
-                A[i,j] = 1
-    return A % 2
+	# Finds x (clicks in the grid) to solve Ax = b (mod N), where A is the matrix and b is the entire grid
+	n = len(keys)
+	A = np.zeros((n,n), dtype=np.uint8)
+	for i, (q, r) in enumerate(keys):
+	   A[i,i] = 1
+	   for dq, dr in directions:
+	   	v = (q + dq, r + dr)
+	   	if v in hexGrid:
+	   		j = keys.index(v)
+	   		A[i,j] = 1
+	return A % 2
 
 # Of course there has to be linear algebra...
 def solution_boardN(A, b, N):
@@ -207,17 +228,16 @@ def search_solutions(xPart, nullspace, limit = 20):
 	return best
 
 def solve_board(keys, hexGrid, directions, limitSearch=50):
-    A = matrix(keys, hexGrid, directions)
-    b = np.array([hexGrid[k] % totalStates for k in keys], dtype=np.int64)
-    solvable, xPart, nullspace = solution_boardN(A, b, totalStates)
-    if not solvable:
-        return None, "No solutions"
-    x = xPart % totalStates
-
-    # Return dictionary with presses
-    pressDict = {keys[i]: int(x[i]) for i in range(len(keys)) if x[i] != 0}
-    totalPresses = sum(pressDict.values())
-    return pressDict, f"Steps: {totalPresses}"
+	A = matrix(keys, hexGrid, directions)
+	b = np.array([hexGrid[k] % totalStates for k in keys], dtype=np.int64)
+	solvable, xPart, nullspace = solution_boardN(A, b, totalStates)
+	if not solvable:
+		return None, "No solutions"
+	x = xPart % totalStates
+	# Return dictionary with presses
+	pressDict = {keys[i]: int(x[i]) for i in range(len(keys)) if x[i] != 0}
+	totalPresses = sum(pressDict.values())
+	return pressDict, f"Steps: {totalPresses}"
 
 def expand_solution(solutionDict):
     sequence = []
@@ -229,23 +249,20 @@ def expand_solution(solutionDict):
     return sequence
 
 def draw_circle(x, y, size, state, hint=None):
-  	color = colorState[state]
-    
-  	pygame.draw.circle(screen, color, (x, y), size)
-  	pygame.draw.circle(screen, colorLine, (x, y), size, 2)
-  	fontCell = pygame.font.SysFont("consolas", 50, bold=True)
-  	text = fontCell.render(str(state + 1), True, colorWhite)
-  	rect = text.get_rect(center=(x, y))
-  	screen.blit(text, rect)
+  color = colorState[state]
+  pygame.draw.circle(screen, color, (x, y), size)
+  pygame.draw.circle(screen, colorLine, (x, y), size, 2)
+  text = fontCell.render(str(state + 1), True, colorWhite)
+  rect = text.get_rect(center=(x, y))
+  screen.blit(text, rect)
   	
-  	# If there is a hint, show above
-  	if hint is not None:
-  	     fontHint = pygame.font.SysFont("consolas", 60, bold=True)
-  	     numberHint = fontHint.render(str(totalStates - hint), True, colorHint)
-  	     screen.blit(numberHint, numberHint.get_rect(center=(x + 30, y - 30)))
+  # If there is a hint, show above
+  if hint is not None:
+  	numberHint = fontHint.render(str(totalStates - hint), True, colorHint)
+  	screen.blit(numberHint, numberHint.get_rect(center=(x + 30 * scaleX, y - 30 * scaleY)))
 
 def solved_board():
-    return all(v == 0 for v in hexGrid.values())
+	return all(v == 0 for v in hexGrid.values())
 
 def format_time(seconds):
 	if seconds is None:
@@ -256,20 +273,15 @@ def format_time(seconds):
 	sec = seconds - minutes * 60
 	return f"{minutes:02d}:{sec:06.3f}"
 
-buttonGame = pygame.Rect(widthX/2-500, heightY - 100, 1000, 100) 
-buttonSolver = pygame.Rect(widthX/2-500, heightY - 250, 1000, 100)
-
 # Game states
 activeGame = False
 activeSolver = False
 
-# Reset Animation states
 solvingAnimation = False
 solutionSequence = []
 animationTimer = 0
 animationDelay = 200//totalStates  # Milliseconds between presses
 
-# Times
 startingTime = None
 totalTime = 0.0
 bestTime = None
@@ -283,16 +295,16 @@ while running:
     solution, message = solve_board(keys, hexGrid, directions)
     if activeSolver:
     	textSolvable = font.render(message, True, colorWhite)
-    	screen.blit(textSolvable, (widthX//2 - 220, heightY - 400)) if message == "No solutions" else screen.blit(textSolvable, (widthX//2 - 150, heightY - 400))
+    	screen.blit(textSolvable, (widthX//2 - 220 * scaleX, heightY - 400 * scaleY)) if message == "No solutions" else screen.blit(textSolvable, (widthX//2 - 150 * scaleX, heightY - 400 * scaleY))
     	
     if activeGame and startingTime is not None:
         totalTime = time.time() - startingTime
     
     # Draw times
     textTime = font.render(f"Time: {format_time(totalTime)}", True, colorWhite)
-    screen.blit(textTime, (widthX//2 - 400, 140))
+    screen.blit(textTime, (widthX / 2 - 400 * scaleX, 140 * scaleY))
     textBest = font.render(f"Best Time: {format_time(bestTime)}", True, colorWhite)
-    screen.blit(textBest, (widthX//2 - 400, 210))
+    screen.blit(textBest, (widthX / 2 - 400 * scaleX, 210 * scaleY))
     
     # Draw circles
     for (q, r) in keys:
@@ -305,7 +317,7 @@ while running:
         	hintValue = solution[(q, r)]
         elif activeSolver and solution is not None and (q, r) in solution:
         	hintValue = solution[(q, r)]
-        draw_circle(x, y, hexSize - 12, state, hintValue)
+        draw_circle(x, y, hexSize - 12 * scaleY, state, hintValue)
 
     # Draw buttons
     mouse = pygame.mouse.get_pos()
@@ -317,10 +329,10 @@ while running:
     pygame.draw.rect(screen, buttonColor2, buttonSolver, border_radius=12)
     
     text1 = "Generate random board" if not activeGame or activeSolver else "Reset Board"
-    screen.blit(font.render(text1, True, colorWhite), (buttonGame.x + 20, buttonGame.y + 10))
+    screen.blit(font.render(text1, True, colorWhite), (buttonGame.x + 20 * scaleX, buttonGame.y + 10 * scaleY))
     
     text2 = "Switch to Solver mode" if not activeSolver else "Switch to Play mode"
-    screen.blit(font.render(text2, True, colorWhite), (buttonSolver.x + 20, buttonSolver.y + 10))
+    screen.blit(font.render(text2, True, colorWhite), (buttonSolver.x + 20 * scaleX, buttonSolver.y + 10 * scaleY))
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -366,7 +378,7 @@ while running:
                 		startingTime = None
                 		totalTime = 0.0
             
-            q, r = pixel_to_hex(mx - widthX//2, my - heightY//2 + 50)
+            q, r = pixel_to_hex(mx - widthX/2, my - heightY/2)
             if (q, r) in hexGrid:
             	if activeSolver:
             		hexGrid[(q, r)] = (hexGrid[(q, r)] + 1) % totalStates
