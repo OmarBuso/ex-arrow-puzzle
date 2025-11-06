@@ -338,6 +338,8 @@ while running:
         if event.type == pygame.QUIT:
             pygame.quit()
             raise SystemExit
+		elif event.type == pygame.VIDEORESIZE:
+			screen = pygame.display.set_mode(event.size, pygame.RESIZABLE)
         elif event.type == pygame.MOUSEBUTTONDOWN:
             mx, my = event.pos
             
